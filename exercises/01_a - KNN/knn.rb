@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-
 Classification = Struct.new(:label, :vector)
 
 def read_classifications(filepath)
@@ -20,8 +18,13 @@ def distance(v1, v2, type: :euclidiean)
 end
 
 def knn(k: 1, training_set:, sample:)
-  training_set.min_by(k) { |c| distance(c.vector, sample.vector) }.map(&:label)
+  training_set.min_by(k) { |c| distance(c.vector, sample.vector) }
 end
 
 training_set = read_classifications('train.csv')
 test_set = read_classifications('test.csv')
+
+test_set.shuffle.each do |sample|
+  nearest = knn(training_set: training_set, sample: sample).first
+  puts "Classified #{sample.label} as #{nearest.label}"
+end
