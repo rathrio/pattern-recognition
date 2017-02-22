@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require 'benchmark'
+
 Classification = Struct.new(:label, :vector)
 
 def read_classifications(filepath)
@@ -37,6 +39,30 @@ def open_as_image(vector)
   system "open /tmp/foo.png"
 end
 
+def condense(training_set)
+  training_set = training_set[0..1000]
+  changes = true
+  condensed = [training_set.shift]
+  while changes do
+    changes = false
+    training_set.each do |c|
+      nearest = knn(training_set: condensed, sample: c, k: 1).first
+      unless nearest.label == c.label
+        condensed << training_set.delete(c)
+        changes = true
+      end
+    end
+  end
+
+  File.open('train_condensed.csv', 'w') do |f|
+    condensed.each do |c|
+      f.puts "#{c.label},#{c.vector.join(',')}"
+    end
+  end
+
+  puts 'Successfully written condensed training set to train_condensed.csv.'
+end
+
 k = ARGV.first || 1
 puts "k = #{k}"
 
@@ -44,9 +70,15 @@ puts "Loading data sets"
 training_set = read_classifications('train.csv')
 test_set = read_classifications('test.csv')
 
-puts "Classifying data"
-test_set.select { |c| c.label == 7 }.each do |sample|
-  k_nearest = knn(training_set: training_set, sample: sample, k: k)
-  nearest = k_nearest.max_by { |c| k_nearest.count(c) }
-  puts "Classified #{sample.label} as #{nearest.label}"
+t = Benchmark.realtime do
+  condense(training_set)
 end
+
+puts "Took #{t} seconds"
+
+# puts "Classifying data"
+# test_set.each do |sample|
+#   k_nearest = knn(training_set: training_set, sample: sample, k: k)
+#   nearest = k_nearest.max_by { |c| k_nearest.count(c) }
+#   puts "Classified #{sample.label} as #{nearest.label}"
+# end
