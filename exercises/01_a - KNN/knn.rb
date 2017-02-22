@@ -40,12 +40,12 @@ def open_as_image(vector)
 end
 
 def condense(training_set)
-  training_set = training_set[0..1000]
   changes = true
   condensed = [training_set.shift]
   while changes do
     changes = false
-    training_set.each do |c|
+    training_set.each_with_index do |c, index|
+      puts index
       nearest = knn(training_set: condensed, sample: c, k: 1).first
       unless nearest.label == c.label
         condensed << training_set.delete(c)
@@ -54,12 +54,12 @@ def condense(training_set)
     end
   end
 
+ensure
   File.open('train_condensed.csv', 'w') do |f|
     condensed.each do |c|
       f.puts "#{c.label},#{c.vector.join(',')}"
     end
   end
-
   puts 'Successfully written condensed training set to train_condensed.csv.'
 end
 
