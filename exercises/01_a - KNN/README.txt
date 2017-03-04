@@ -36,3 +36,9 @@ The condensed set took ~10h to generate (with the euclidean distance).
 
 Output
 ------
+
+k=1: 93.59%
+k=3: 95.13%
+k=5: 95.51%
+k=10: 95.69%
+k=15: 95.12%
