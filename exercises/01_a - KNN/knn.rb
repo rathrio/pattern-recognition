@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require 'thread'
+
 # Using Ruby's iterators slows this script down significantly, that's why both
 # distance functions use for-loops.
 def euclidiean_distance(v1, v2)
@@ -117,7 +119,7 @@ ensure
   puts 'Successfully written condensed training set to train_condensed.csv.'
 end
 
-def classify(k: [1], training_set:, samples:, distance_metric: :euclidiean)
+def classify(k: [1, 3, 5, 10, 15], training_set:, samples:, distance_metric: :euclidiean)
   puts "Start classifying data with #{distance_metric} distance"
   errors = {
     1  => [],
@@ -176,4 +178,6 @@ puts "Loading data sets"
 training_set = read_classifications('train_condensed.csv')
 test_set = read_classifications('test.csv')
 
-classify(k: [1, 3, 5, 10, 15], training_set: training_set, samples: test_set, distance_metric: distance_metric)
+b do
+  classify(k: [1, 3, 5, 10, 15], training_set: training_set, samples: test_set[0..99], distance_metric: distance_metric)
+end
