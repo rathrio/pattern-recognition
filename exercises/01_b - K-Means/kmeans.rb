@@ -52,8 +52,7 @@ end
 def kmeans(ks: [5, 7, 9, 10, 12, 15], training_set:, iterations: 1)
   ks.each do |k|
     # Choose K initial cluster centers
-    # centers = training_set.sample(k)
-    centers = training_set.first(k)
+    centers = training_set.sample(k)
     clusters = centers.map { |c| Cluster.new(c.vector, []) }
 
     iterations.times do |i|
@@ -87,4 +86,4 @@ if ARGV.first =~ /-h|--help/
 end
 
 training_set = read_classifications('training_set.csv')
-b { kmeans(ks: [9], training_set: training_set, iterations: 1) }
+b { kmeans(ks: [9], training_set: training_set, iterations: 100) }
