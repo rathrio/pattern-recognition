@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'thread'
+require 'java'
 
 # Using Ruby's iterators slows this script down significantly, that's why both
 # distance functions use for-loops.
