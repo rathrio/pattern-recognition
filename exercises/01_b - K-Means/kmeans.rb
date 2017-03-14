@@ -67,15 +67,17 @@ end
 
 ClusterDistance = Struct.new(:distance, :cluster)
 
-def c_index(clusters)
-  cluster_distances = clusters.flat_map(&:classifications).permutation(2).to_a.map do |c1, c2|
+def c_index(clusters, samples: 500_000)
+  gamma = 0
+  alpha = 0
+
+  pairs = clusters.flat_map(&:classifications).combination(2).to_a
+
+  cluster_distances = pairs.sample(samples).map do |c1, c2|
     distance = d(c1.vector, c2.vector)
     cluster = (c1.cluster == c2.cluster) ? c1.cluster : nil
     ClusterDistance.new(distance, cluster)
   end.sort_by(&:distance)
-
-  gamma = 0
-  alpha = 0
 
   clusters.each do |c|
     distances_within_cluster = cluster_distances
@@ -149,5 +151,5 @@ if ARGV.first =~ /-h|--help/
 end
 
 training_set = []
-b('Loaded training set') { training_set = read_classifications('training_set.csv')[0..99] }
+b('Loaded training set') { training_set = read_classifications('training_set.csv') }
 cluster(ks: [5, 7, 9, 10, 12, 15], training_set: training_set, iterations: 20)
