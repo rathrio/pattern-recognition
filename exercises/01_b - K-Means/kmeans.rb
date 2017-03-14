@@ -67,17 +67,22 @@ end
 
 ClusterDistance = Struct.new(:distance, :cluster)
 
-def c_index(clusters, samples: 500_000)
+def c_index(clusters, samples: 1000)
   gamma = 0
   alpha = 0
 
-  pairs = clusters.flat_map(&:classifications).combination(2).to_a
+  classifications = clusters.flat_map(&:classifications).sample(samples)
+  pair_indices = (0...classifications.count).to_a.combination(2).to_a
 
-  cluster_distances = pairs.sample(samples).map do |c1, c2|
+  cluster_distances = pair_indices.map do |c1_index, c2_index|
+    c1 = classifications[c1_index]
+    c2 = classifications[c2_index]
+
     distance = d(c1.vector, c2.vector)
     cluster = (c1.cluster == c2.cluster) ? c1.cluster : nil
     ClusterDistance.new(distance, cluster)
   end.sort_by(&:distance)
+
 
   clusters.each do |c|
     distances_within_cluster = cluster_distances
@@ -107,13 +112,11 @@ def kmeans(k:, training_set:, iterations:)
         d(cluster.center, c.vector)
       end
       nearest_cluster.add(c)
-      # print '.'
     end
 
     # Don't recompute centers in last iteration because we're done reassigning
     # vectors.
     unless (i + 1) == iterations
-      # puts "\nRecomputing centers"
       clusters.each(&:recompute_center)
     end
   end
@@ -132,15 +135,6 @@ def cluster(ks: [5, 7, 9, 10, 12, 15], training_set:, iterations: 1)
     b("Calculated C-Index") do
       puts "C-Index k=#{k}: #{c_index(clusters)}".green
     end
-
-    # puts "\nStats for k=#{k}"
-    # clusters.each_with_index do |cluster, index|
-    #   puts "\nCluster #{index}\n----------"
-    #   all_labels = cluster.labels
-    #   (0..9).each do |l|
-    #     puts "#{l}: #{all_labels.count(l)}"
-    #   end
-    # end
   end
 end
 
