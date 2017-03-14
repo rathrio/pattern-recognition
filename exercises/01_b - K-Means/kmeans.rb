@@ -1,6 +1,12 @@
 #!/usr/bin/env ruby
 
-def distance(v1, v2)
+class String
+  def green
+    "\e[32m#{self}\e[0m"
+  end
+end
+
+def d(v1, v2)
   sum = 0
   for i in 0..783
     sum += ((v2[i] - v1[i]) ** 2)
@@ -8,7 +14,7 @@ def distance(v1, v2)
   Math.sqrt(sum)
 end
 
-Classification = Struct.new(:label, :vector)
+Classification = Struct.new(:label, :vector, :cluster)
 
 # Loads labeled vectors from filepath and returns them as an Array of
 # Classifications.
@@ -26,15 +32,16 @@ def b(msg = nil)
   t = Benchmark.realtime do
     yield
   end
-  puts "\n#{msg}: #{t.round(4)}".strip
+  puts "\n#{msg} in #{t.round(3)}s".strip
 end
 
 class Cluster
-  attr_reader :center, :classifications
+  attr_reader :center, :classifications, :id
 
-  def initialize(center, classifications)
+  def initialize(center, classifications, id)
     @center = center
     @classifications = classifications
+    @id = id
   end
 
   def recompute_center
@@ -45,32 +52,66 @@ class Cluster
   end
 
   def add(classification)
+    classification.cluster = id
     @classifications << classification
   end
 
   def labels
     classifications.map(&:label)
   end
+
+  def vectors
+    classifications.map(&:vector)
+  end
+end
+
+ClusterDistance = Struct.new(:distance, :cluster)
+
+def c_index(clusters)
+  cluster_distances = clusters.flat_map(&:classifications).permutation(2).to_a.map do |c1, c2|
+    distance = d(c1.vector, c2.vector)
+    cluster = (c1.cluster == c2.cluster) ? c1.cluster : nil
+    ClusterDistance.new(distance, cluster)
+  end.sort_by(&:distance)
+
+  gamma = 0
+  alpha = 0
+
+  clusters.each do |c|
+    distances_within_cluster = cluster_distances
+      .select { |d| d.cluster == c.id }
+      .map(&:distance).compact
+
+    next if distances_within_cluster.empty?
+
+    gamma += distances_within_cluster.inject(&:+)
+    alpha += distances_within_cluster.count
+  end
+
+  min = cluster_distances.first(alpha).map(&:distance).inject(&:+)
+  max = cluster_distances.last(alpha).map(&:distance).inject(&:+)
+
+  (gamma - min) / (max - min)
 end
 
 def kmeans(k:, training_set:, iterations:)
   # Choose K initial cluster centers
   centers = training_set.sample(k)
-  clusters = centers.map { |c| Cluster.new(c.vector, []) }
+  clusters = centers.map.with_index { |c, i| Cluster.new(c.vector, [], i) }
 
   iterations.times do |i|
     training_set.each do |c|
       nearest_cluster = clusters.min_by do |cluster|
-        distance(cluster.center, c.vector)
+        d(cluster.center, c.vector)
       end
       nearest_cluster.add(c)
-      print '.'
+      # print '.'
     end
 
     # Don't recompute centers in last iteration because we're done reassigning
     # vectors.
     unless (i + 1) == iterations
-      puts "\nRecomputing centers"
+      # puts "\nRecomputing centers"
       clusters.each(&:recompute_center)
     end
   end
@@ -80,16 +121,24 @@ end
 
 def cluster(ks: [5, 7, 9, 10, 12, 15], training_set:, iterations: 1)
   ks.each do |k|
-    clusters = kmeans(k: k, training_set: training_set, iterations: iterations)
+    clusters = nil
 
-    puts "\nStats for k=#{k}"
-    clusters.each_with_index do |cluster, index|
-      puts "\nCluster #{index}\n----------"
-      all_labels = cluster.labels
-      (0..9).each do |l|
-        puts "#{l}: #{all_labels.count(l)}"
-      end
+    b("Clustered with k=#{k}") do
+      clusters = kmeans(k: k, training_set: training_set, iterations: iterations)
     end
+
+    b("Calculated C-Index") do
+      puts "C-Index k=#{k}: #{c_index(clusters)}".green
+    end
+
+    # puts "\nStats for k=#{k}"
+    # clusters.each_with_index do |cluster, index|
+    #   puts "\nCluster #{index}\n----------"
+    #   all_labels = cluster.labels
+    #   (0..9).each do |l|
+    #     puts "#{l}: #{all_labels.count(l)}"
+    #   end
+    # end
   end
 end
 
@@ -100,5 +149,5 @@ if ARGV.first =~ /-h|--help/
 end
 
 training_set = []
-b('Loading training set') { training_set = read_classifications('training_set.csv') }
-b('Clustering') { cluster(ks: [9], training_set: training_set, iterations: 100) }
+b('Loaded training set') { training_set = read_classifications('training_set.csv')[0..99] }
+cluster(ks: [5, 7, 9, 10, 12, 15], training_set: training_set, iterations: 20)
