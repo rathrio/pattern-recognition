@@ -72,17 +72,13 @@ def c_index(clusters, samples: 1000)
   alpha = 0
 
   classifications = clusters.flat_map(&:classifications).sample(samples)
-  pair_indices = (0...classifications.count).to_a.combination(2).to_a
+  pairs = classifications.combination(2)
 
-  cluster_distances = pair_indices.map do |c1_index, c2_index|
-    c1 = classifications[c1_index]
-    c2 = classifications[c2_index]
-
+  cluster_distances = pairs.map do |c1, c2|
     distance = d(c1.vector, c2.vector)
     cluster = (c1.cluster == c2.cluster) ? c1.cluster : nil
     ClusterDistance.new(distance, cluster)
   end.sort_by(&:distance)
-
 
   clusters.each do |c|
     distances_within_cluster = cluster_distances
@@ -146,4 +142,4 @@ end
 
 training_set = []
 b('Loaded training set') { training_set = read_classifications('training_set.csv') }
-cluster(ks: [5, 7, 9, 10, 12, 15], training_set: training_set, iterations: 20)
+cluster(ks: [9], training_set: training_set, iterations: 20)
