@@ -74,15 +74,15 @@ def c_index(clusters, samples: 1000)
   classifications = clusters.flat_map(&:classifications).sample(samples)
   pairs = classifications.combination(2)
 
-  cluster_distances = pairs.map do |c1, c2|
+  distances = pairs.map do |c1, c2|
     distance = d(c1.vector, c2.vector)
     cluster = (c1.cluster == c2.cluster) ? c1.cluster : nil
     ClusterDistance.new(distance, cluster)
   end.sort_by(&:distance)
 
-  clusters.each do |c|
-    distances_within_cluster = cluster_distances
-      .select { |d| d.cluster == c.id }
+  clusters.each do |cluster|
+    distances_within_cluster = distances
+      .select { |d| d.cluster == cluster.id }
       .map(&:distance).compact
 
     next if distances_within_cluster.empty?
@@ -91,10 +91,24 @@ def c_index(clusters, samples: 1000)
     alpha += distances_within_cluster.count
   end
 
-  min = cluster_distances.first(alpha).map(&:distance).inject(&:+)
-  max = cluster_distances.last(alpha).map(&:distance).inject(&:+)
+  min = distances.first(alpha).map(&:distance).inject(&:+)
+  max = distances.last(alpha).map(&:distance).inject(&:+)
 
   (gamma - min) / (max - min)
+end
+
+def goodman_kruskal_index(clusters, samples: 100)
+  classifications = clusters.flat_map(&:classifications).sample(samples)
+  tuples = classifications.combination(4)
+
+  concordant = 0
+  discordant = 0
+
+  tuples.each do |tuple|
+    pairs = tuple.combination(2)
+  end
+
+  (concordant - discordant) / (concordant + discordant)
 end
 
 def kmeans(k:, training_set:, iterations:)
@@ -128,8 +142,12 @@ def cluster(ks: [5, 7, 9, 10, 12, 15], training_set:, iterations: 1)
       clusters = kmeans(k: k, training_set: training_set, iterations: iterations)
     end
 
-    b("Calculated C-Index") do
-      puts "C-Index k=#{k}: #{c_index(clusters)}".green
+    # b("Calculated C-Index") do
+    #   puts "C-Index k=#{k}: #{c_index(clusters)}".green
+    # end
+
+    b("Calculated Goodman-Kruskal-Index") do
+      puts "Goodman-Kruskal-Index k=#{k}: #{goodman_kruskal_index(clusters)}".green
     end
   end
 end
@@ -142,4 +160,4 @@ end
 
 training_set = []
 b('Loaded training set') { training_set = read_classifications('training_set.csv') }
-cluster(ks: [9], training_set: training_set, iterations: 20)
+cluster(ks: [9], training_set: training_set, iterations: 5)
