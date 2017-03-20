@@ -17,15 +17,14 @@ def d(v1, v2)
 end
 
 # Structure to keep track of which vector belongs to which cluster.
-# Classification is a very stupid name carried over from the first exercise.
-Classification = Struct.new(:label, :vector, :cluster)
+LabeledVector = Struct.new(:label, :vector, :cluster)
 
 # Loads labeled vectors from filepath and returns them as an Array of
-# Classifications.
-def read_classifications(filepath)
+# LabeledVectors.
+def read_labeled_vectors(filepath)
   File.readlines(filepath).map do |line|
     label, *vector = line.split(',').map(&:to_i)
-    Classification.new(label, vector)
+    LabeledVector.new(label, vector)
   end
 end
 
@@ -40,47 +39,56 @@ def b(msg = nil)
 end
 
 class Cluster
-  attr_reader :center, :classifications, :id
+  attr_reader :center, :labeled_vectors, :id
 
-  def initialize(center, classifications, id)
+  def initialize(center, labeled_vectors, id)
     @center = center
-    @classifications = classifications
+    @labeled_vectors = labeled_vectors
     @id = id
   end
 
+  # Assigned mean vector of all labeled_vectors as new center and clears all
+  # previously assigned vectors, because they are reassigned in the next
+  # clustering iteration.
   def recompute_center
-    vector_count = classifications.count.to_f
-    @center = classifications.map(&:vector).transpose.
+    vector_count = labeled_vectors.count.to_f
+    @center = labeled_vectors.map(&:vector).transpose.
       map { |v| v.inject(&:+) / vector_count }
-    @classifications = []
+    @labeled_vectors = []
   end
 
-  def add(classification)
-    classification.cluster = id
-    @classifications << classification
+  def add(labeled_vector)
+    # Let vectors know about the clusters they belong to for later quality
+    # measures.
+    labeled_vector.cluster = id
+    @labeled_vectors << labeled_vector
   end
 
   def labels
-    classifications.map(&:label)
+    labeled_vectors.map(&:label)
   end
 
   def vectors
-    classifications.map(&:vector)
+    labeled_vectors.map(&:vector)
   end
 end
 
+# Structure to keep track of which distances belong to which cluster. Needed
+# for C-index calculation.
 ClusterDistance = Struct.new(:distance, :cluster)
 
+# By default, this only calculates the C-index for 1000 vectors. Reason being
+# that Ruby ran out of memory for larger samples.
 def c_index(clusters, samples: 1000)
   gamma = 0
   alpha = 0
 
-  classifications = clusters.flat_map(&:classifications).sample(samples)
-  pairs = classifications.combination(2)
+  labeled_vectors = clusters.flat_map(&:labeled_vectors).sample(samples)
+  pairs = labeled_vectors.combination(2)
 
-  distances = pairs.map do |c1, c2|
-    distance = d(c1.vector, c2.vector)
-    cluster = (c1.cluster == c2.cluster) ? c1.cluster : nil
+  distances = pairs.map do |v1, v2|
+    distance = d(v1.vector, v2.vector)
+    cluster = (v1.cluster == v2.cluster) ? v1.cluster : nil
     ClusterDistance.new(distance, cluster)
   end.sort_by(&:distance)
 
@@ -102,8 +110,8 @@ def c_index(clusters, samples: 1000)
 end
 
 def goodman_kruskal_index(clusters, samples: 50)
-  classifications = clusters.flat_map(&:classifications).sample(samples)
-  tuples = classifications.combination(4)
+  labeled_vectors = clusters.flat_map(&:labeled_vectors).sample(samples)
+  tuples = labeled_vectors.combination(4)
 
   concordant = 0
   discordant = 0
@@ -155,7 +163,7 @@ def kmeans(k:, training_set:, iterations:)
   clusters
 end
 
-def cluster(ks: [5, 7, 9, 10, 12, 15], training_set:, iterations: 1)
+def cluster(ks: [], training_set: [], iterations: 1)
   ks.each do |k|
     clusters = nil
 
@@ -180,5 +188,5 @@ if ARGV.first =~ /-h|--help/
 end
 
 training_set = []
-b('Loaded training set') { training_set = read_classifications('training_set.csv') }
+b('Loaded training set') { training_set = read_labeled_vectors('training_set.csv') }
 cluster(ks: [5, 7, 9, 10, 12, 15], training_set: training_set, iterations: 20)
