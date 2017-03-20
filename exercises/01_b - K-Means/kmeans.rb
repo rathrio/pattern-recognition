@@ -1,11 +1,13 @@
 #!/usr/bin/env ruby
 
+# For colored output.
 class String
   def green
     "\e[32m#{self}\e[0m"
   end
 end
 
+# Calculates euclidean distance between v1 and v2.
 def d(v1, v2)
   sum = 0
   for i in 0..783
@@ -14,6 +16,8 @@ def d(v1, v2)
   Math.sqrt(sum)
 end
 
+# Structure to keep track of which vector belongs to which cluster.
+# Classification is a very stupid name carried over from the first exercise.
 Classification = Struct.new(:label, :vector, :cluster)
 
 # Loads labeled vectors from filepath and returns them as an Array of
@@ -97,7 +101,7 @@ def c_index(clusters, samples: 1000)
   (gamma - min) / (max - min)
 end
 
-def goodman_kruskal_index(clusters, samples: 100)
+def goodman_kruskal_index(clusters, samples: 50)
   classifications = clusters.flat_map(&:classifications).sample(samples)
   tuples = classifications.combination(4)
 
@@ -105,10 +109,27 @@ def goodman_kruskal_index(clusters, samples: 100)
   discordant = 0
 
   tuples.each do |tuple|
-    pairs = tuple.combination(2)
+    tuple.combination(2).to_a.combination(2).each do |(x_i, x_j), (x_r, x_s)|
+      distance_pair1 = d(x_i.vector, x_j.vector)
+      distance_pair2 = d(x_r.vector, x_s.vector)
+
+      is_concordant = (distance_pair1 < distance_pair2 &&
+                      (x_i.cluster == x_j.cluster && x_r.cluster != x_s.cluster)) ||
+                      (distance_pair1 > distance_pair2 &&
+                      (x_i.cluster != x_j.cluster && x_r.cluster == x_s.cluster))
+
+      is_discordant = (distance_pair1 < distance_pair2 &&
+                      (x_i.cluster != x_j.cluster && x_r.cluster == x_s.cluster)) ||
+                      (distance_pair1 > distance_pair2 &&
+                      (x_i.cluster == x_j.cluster && x_r.cluster != x_s.cluster))
+
+
+      concordant += 1 if is_concordant
+      discordant += 1 if is_discordant
+    end
   end
 
-  (concordant - discordant) / (concordant + discordant)
+  (concordant - discordant) / (concordant + discordant).to_f
 end
 
 def kmeans(k:, training_set:, iterations:)
@@ -138,15 +159,15 @@ def cluster(ks: [5, 7, 9, 10, 12, 15], training_set:, iterations: 1)
   ks.each do |k|
     clusters = nil
 
-    b("Clustered with k=#{k}") do
+    b "Clustered with k=#{k}"  do
       clusters = kmeans(k: k, training_set: training_set, iterations: iterations)
     end
 
-    # b("Calculated C-Index") do
-    #   puts "C-Index k=#{k}: #{c_index(clusters)}".green
-    # end
+    b "Calculated C-Index"  do
+      puts "C-Index k=#{k}: #{c_index(clusters)}".green
+    end
 
-    b("Calculated Goodman-Kruskal-Index") do
+    b "Calculated Goodman-Kruskal-Index"  do
       puts "Goodman-Kruskal-Index k=#{k}: #{goodman_kruskal_index(clusters)}".green
     end
   end
@@ -160,4 +181,4 @@ end
 
 training_set = []
 b('Loaded training set') { training_set = read_classifications('training_set.csv') }
-cluster(ks: [9], training_set: training_set, iterations: 5)
+cluster(ks: [5, 7, 9, 10, 12, 15], training_set: training_set, iterations: 20)
