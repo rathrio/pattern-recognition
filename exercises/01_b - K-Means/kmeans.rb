@@ -77,8 +77,9 @@ end
 # for C-index calculation.
 ClusterDistance = Struct.new(:distance, :cluster)
 
-# By default, this only calculates the C-index for 1000 vectors. Reason being
-# that Ruby ran out of memory for larger samples.
+# By default, this calculates the C-index for 1000 randomly selected vectors.
+# Reason being that Ruby ran out of memory for larger samples when building the
+# combinations.
 def c_index(clusters, samples: 1000)
   gamma = 0
   alpha = 0
@@ -109,7 +110,12 @@ def c_index(clusters, samples: 1000)
   (gamma - min) / (max - min)
 end
 
+# By default, this calculates the Goodman-Kruskal-index for 50 randomly selected vectors.
+# Reason being that Ruby ran out of memory for larger samples when building the
+# combinations.
 def goodman_kruskal_index(clusters, samples: 50)
+  samples = 10 if $aintgotnotime
+
   labeled_vectors = clusters.flat_map(&:labeled_vectors).sample(samples)
   tuples = labeled_vectors.combination(4)
 
@@ -141,10 +147,11 @@ def goodman_kruskal_index(clusters, samples: 50)
 end
 
 def kmeans(k:, training_set:, iterations:)
-  # Choose K initial cluster centers
+  # Randomly choose K initial cluster centers.
   centers = training_set.sample(k)
   clusters = centers.map.with_index { |c, i| Cluster.new(c.vector, [], i) }
 
+  # Stop after a certain number of iterations.
   iterations.times do |i|
     training_set.each do |c|
       nearest_cluster = clusters.min_by do |cluster|
@@ -167,6 +174,7 @@ def cluster(ks: [], training_set: [], iterations: 1)
   ks.each do |k|
     clusters = nil
 
+    # The b method just measures how long it takes to perform the given task.
     b "Clustered with k=#{k}"  do
       clusters = kmeans(k: k, training_set: training_set, iterations: iterations)
     end
@@ -188,5 +196,14 @@ if ARGV.first =~ /-h|--help/
 end
 
 training_set = []
+
 b('Loaded training set') { training_set = read_labeled_vectors('training_set.csv') }
-cluster(ks: [5, 7, 9, 10, 12, 15], training_set: training_set, iterations: 20)
+ks = [5, 7, 9, 10, 12, 15]
+iterations = 100
+
+if ARGV.first == "--aint-got-no-time"
+  $aintgotnotime = true
+  training_set = training_set[0..49]
+end
+
+cluster(ks: ks, training_set: training_set, iterations: iterations)
