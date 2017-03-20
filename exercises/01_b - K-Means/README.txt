@@ -1,5 +1,5 @@
-Exercise 1a - KNN
-=================
+Exercise 1b - K-Means
+=====================
 
 Rathesan Iyadurai (10-107-688)
 
