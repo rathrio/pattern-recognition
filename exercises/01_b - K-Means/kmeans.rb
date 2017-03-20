@@ -199,7 +199,7 @@ training_set = []
 
 b('Loaded training set') { training_set = read_labeled_vectors('training_set.csv') }
 ks = [5, 7, 9, 10, 12, 15]
-iterations = 100
+iterations = 50
 
 if ARGV.first == "--aint-got-no-time"
   $aintgotnotime = true
