@@ -203,7 +203,7 @@ iterations = 50
 
 if ARGV.first == "--aint-got-no-time"
   $aintgotnotime = true
-  training_set = training_set[0..49]
+  training_set = training_set[0..99]
 end
 
 cluster(ks: ks, training_set: training_set, iterations: iterations)

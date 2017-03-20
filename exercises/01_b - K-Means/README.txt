@@ -17,7 +17,7 @@ To execute the script from the current directory, run:
 
         ruby kmeans.rb
 
-I highly recommend using a faster Ruby implementation, such as TruffleRuby[1].
+I highly recommend using a faster Ruby implementation, such as TruffleRuby [1].
 As an alternative, run 
 
         ruby kmeans.rb --aint-got-no-time
